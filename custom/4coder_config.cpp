@@ -1554,6 +1554,13 @@ load_config_and_apply(Application_Links *app, Arena *out_arena, i32 override_fon
     if (!modify_global_face_by_description(app, description)){
         String8 name_in_fonts_folder = push_u8_stringf(scratch, "fonts/%.*s", string_expand(default_font_name));
         description.font.file_name = def_search_normal_full_path(scratch, name_in_fonts_folder);
+        if (description.font.file_name.str == 0) {
+            String8 windows_fonts_folder = push_u8_stringf(scratch, "C:/Windows/Fonts/%.*s", string_expand(default_font_name));
+            File_Attributes attribs = system_quick_file_attributes(scratch, windows_fonts_folder);
+            if (attribs.last_write_time > 0) {
+                description.font.file_name = windows_fonts_folder;
+            }
+        }
         modify_global_face_by_description(app, description);
     }
     
