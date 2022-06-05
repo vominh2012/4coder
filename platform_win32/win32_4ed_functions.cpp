@@ -324,6 +324,8 @@ system_get_file_list_sig(){
                 break;
             }
         }
+		
+		FindClose(search);
         
         result.infos = push_array(arena, File_Info*, count);
         result.count = count;
