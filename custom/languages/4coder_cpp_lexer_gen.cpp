@@ -174,6 +174,8 @@ build_language_model(void){
     sm_key("Const");
     sm_key("Volatile");
     sm_key("Asm");
+    sm_key("_Asm");
+    sm_key("__Asm");
     sm_key("Break");
     sm_key("Case");
     sm_key("Catch");
