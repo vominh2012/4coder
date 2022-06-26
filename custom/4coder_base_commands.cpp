@@ -1363,6 +1363,71 @@ CUSTOM_DOC("Read from the top of the point stack and jump there; if already ther
 }
 
 ////////////////////////////////
+function void
+execute_command_line(Application_Links *app, List_String_Const_u8 list_cmd, Buffer_ID buffer_id){
+    Scratch_Block scratch(app);
+
+    String_Const_u8 hot_path = push_hot_directory(app, scratch);
+  
+  
+    //string_list_push_u8_lit(scratch, &list, cmd_code);
+    //string_list_pushf(scratch, &list, "\"%.*s\"", string_expand(file_name));
+
+    String_Const_u8 cmd = string_list_flatten(scratch, list_cmd, StringFill_NullTerminate);
+    exec_system_command(app, 0, buffer_identifier(0), hot_path, cmd, 0);
+    buffer_kill(app, buffer_id, BufferKill_AlwaysKill);
+}
+
+function void
+open_command_teminal_base(Application_Links *app, String_Const_u8 file_name, Buffer_ID buffer_id){
+    Scratch_Block scratch(app);
+
+    List_String_Const_u8 list = {};
+#if OS_WINDOWS
+    string_list_push_u8_lit(scratch, &list, "start");
+#elif OS_LINUX || OS_MAC
+    string_list_push_u8_lit(scratch, &list, "start");
+#else
+# error no command terminal for this platform
+#endif
+
+    execute_command_line(app, list, buffer_id);
+}
+
+CUSTOM_COMMAND_SIG(open_command_teminal)
+CUSTOM_DOC("Open command terminal window.")
+{
+    View_ID view = get_active_view(app, Access_Always);
+    Buffer_ID buffer = view_get_buffer(app, view, Access_Always);
+    Scratch_Block scratch(app);
+    String_Const_u8 file_name = push_buffer_file_name(app, scratch, buffer);
+    open_command_teminal_base(app, file_name, buffer);
+}
+
+function void
+open_folder_explorer_base(Application_Links* app, String_Const_u8 file_name, Buffer_ID buffer_id) {
+    Scratch_Block scratch(app);
+
+    List_String_Const_u8 list = {};
+#if OS_WINDOWS
+    string_list_push_u8_lit(scratch, &list, "start .");
+#elif OS_LINUX || OS_MAC
+    string_list_push_u8_lit(scratch, &list, "start .");
+#else
+# error no folder explorer for this platform
+#endif
+    execute_command_line(app, list, buffer_id);
+}
+
+CUSTOM_COMMAND_SIG(open_folder_explorer)
+CUSTOM_DOC("Open folder explorer")
+{
+    View_ID view = get_active_view(app, Access_Always);
+    Buffer_ID buffer = view_get_buffer(app, view, Access_Always);
+    Scratch_Block scratch(app);
+    String_Const_u8 file_name = push_buffer_file_name(app, scratch, buffer);
+    open_folder_explorer_base(app, file_name, buffer);
+}
 
 function void
 delete_file_base(Application_Links *app, String_Const_u8 file_name, Buffer_ID buffer_id){

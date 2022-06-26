@@ -18,6 +18,7 @@ setup_default_mapping(Mapping *mapping, i64 global_id, i64 file_id, i64 code_id)
     Bind(interactive_new,               KeyCode_N, KeyCode_Control);
     Bind(interactive_open_or_new,       KeyCode_O, KeyCode_Control);
     Bind(open_in_other,                 KeyCode_O, KeyCode_Alt);
+    Bind(open_folder_explorer,          KeyCode_O, KeyCode_Control, KeyCode_Alt);
     Bind(interactive_kill_buffer,       KeyCode_K, KeyCode_Control);
     Bind(interactive_switch_buffer,     KeyCode_I, KeyCode_Control);
     Bind(project_go_to_root_directory,  KeyCode_H, KeyCode_Control);
@@ -78,7 +79,8 @@ setup_default_mapping(Mapping *mapping, i64 global_id, i64 file_id, i64 code_id)
     Bind(snipe_backward_whitespace_or_token_boundary, KeyCode_Backspace, KeyCode_Alt);
     Bind(snipe_forward_whitespace_or_token_boundary,  KeyCode_Delete, KeyCode_Alt);
     Bind(set_mark,                    KeyCode_Space, KeyCode_Control);
-    Bind(replace_in_range,            KeyCode_A, KeyCode_Control);
+    //Bind(replace_in_range,            KeyCode_A, KeyCode_Control);
+    Bind(select_all,            KeyCode_A, KeyCode_Control);
     Bind(copy,                        KeyCode_C, KeyCode_Control);
     Bind(delete_range,                KeyCode_D, KeyCode_Control);
     Bind(delete_line,                 KeyCode_D, KeyCode_Control, KeyCode_Shift);
@@ -101,6 +103,7 @@ setup_default_mapping(Mapping *mapping, i64 global_id, i64 file_id, i64 code_id)
     Bind(save,                        KeyCode_S, KeyCode_Control);
     Bind(save_all_dirty_buffers,      KeyCode_S, KeyCode_Control, KeyCode_Shift);
     Bind(search_identifier,           KeyCode_T, KeyCode_Control);
+    Bind(open_command_teminal,           KeyCode_T, KeyCode_Control, KeyCode_Alt);
     Bind(list_all_locations_of_identifier, KeyCode_T, KeyCode_Control, KeyCode_Shift);
     Bind(paste_and_indent,            KeyCode_V, KeyCode_Control);
     Bind(paste_next_and_indent,       KeyCode_V, KeyCode_Control, KeyCode_Shift);
