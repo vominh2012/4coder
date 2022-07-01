@@ -9,8 +9,8 @@
 
 // TOP
 
-#define FPS 60
-#define frame_useconds (1000000 / FPS)
+//#define FPS 60
+//#define frame_useconds (1000000 / FPS)
 
 #include <stdio.h>
 
@@ -1655,13 +1655,28 @@ win32_gl_create_window(HWND *wnd_out, HGLRC *context_out, DWORD style, RECT rect
                 DestroyWindow(wnd);
                 SetLastError(error);
             }
-            else{
-                ReleaseDC(wnd, dc);
-            }
         }
     }
     
     return(result);
+}
+
+// NOTE(jack): Query win32 API to get montior refresh rate.
+internal u64
+win32_get_frame_rate() {
+    u64 frame_rate = 60;
+
+    DEVMODE device_mode = { 0 };
+    // memset(&device_mode, 0, sizeof(DEVMODE));
+    device_mode.dmSize = sizeof(DEVMODE);
+    device_mode.dmDriverExtra = 0;
+
+    // If the Display settings can be retrieved use the device's refresh rate
+    if(EnumDisplaySettings(NULL, ENUM_CURRENT_SETTINGS, &device_mode) != 0){
+        frame_rate = device_mode.dmDisplayFrequency;
+    }
+
+    return frame_rate;
 }
 
 ////////////////////////////////
@@ -1687,7 +1702,7 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
     
     // NOTE(allen): This thing
     InitializeCriticalSection(&memory_tracker_mutex);
-    
+
     // NOTE(allen): context setup
     Thread_Context _tctx = {};
     thread_ctx_init(&_tctx, ThreadKind_Main, get_base_allocator_system(), get_base_allocator_system());
@@ -1723,6 +1738,12 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
     
     InitializeCriticalSection(&win32vars.thread_launch_mutex);
     InitializeConditionVariable(&win32vars.thread_launch_cv);
+
+     //- @Added by jack
+     log_os("Getting monitor update rate...\n");
+    u64 frame_rate = win32_get_frame_rate();
+    u64 frame_useconds = (1000000 / frame_rate);
+    //-
     
     log_os("Setting up DPI awareness...\n");
     
