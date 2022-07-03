@@ -204,8 +204,8 @@ print_positions_buffered(Application_Links *app, Buffer_Insertion *out, Buffer_I
     }
 }
 
-function void
-list_all_functions(Application_Links *app, Buffer_ID optional_target_buffer){
+function Buffer_ID
+list_all_functions(Application_Links *app, Buffer_ID optional_target_buffer, bool active = true){
     // TODO(allen): Use create or switch to buffer and clear here?
     String_Const_u8 decls_name = string_u8_litexpr("*decls*");
     Buffer_ID decls_buffer = get_buffer_by_name(app, decls_name, Access_Always);
@@ -259,10 +259,13 @@ list_all_functions(Application_Links *app, Buffer_ID optional_target_buffer){
     
     end_buffer_insertion(&out);
     
-    View_ID view = get_active_view(app, Access_Always);
-    view_set_buffer(app, view, decls_buffer, 0);
-    
+    if (active) {
+        View_ID view = get_active_view(app, Access_Always);
+        view_set_buffer(app, view, decls_buffer, 0);
+    }
     lock_jump_buffer(app, decls_name);
+
+    return decls_buffer;
 }
 
 CUSTOM_COMMAND_SIG(list_all_functions_current_buffer)
@@ -282,10 +285,8 @@ CUSTOM_DOC("Creates a lister of locations that look like function definitions an
     View_ID view = get_active_view(app, Access_ReadVisible);
     Buffer_ID buffer = view_get_buffer(app, view, Access_ReadVisible);
     if (buffer != 0){
-        list_all_functions(app, buffer);
-        view = get_active_view(app, Access_Always);
-        buffer = view_get_buffer(app, view, Access_Always);
-        Marker_List *list = get_or_make_list_for_buffer(app, heap, buffer);
+       Buffer_ID decls_buffer = list_all_functions(app, buffer, false);
+        Marker_List *list = get_or_make_list_for_buffer(app, heap, decls_buffer);
         if (list != 0){
             Jump_Lister_Result jump = get_jump_index_from_user(app, list, "Function:");
             jump_to_jump_lister_result(app, view, list, &jump);
@@ -303,12 +304,11 @@ CUSTOM_UI_COMMAND_SIG(list_all_functions_all_buffers_lister)
 CUSTOM_DOC("Creates a lister of locations that look like function definitions and declarations all buffers.")
 {
     Heap *heap = &global_heap;
-    list_all_functions(app, 0);
-    View_ID view = get_active_view(app, Access_Always);
-    Buffer_ID buffer = view_get_buffer(app, view, Access_Always);
+    Buffer_ID buffer = list_all_functions(app, 0, false);
     Marker_List *list = get_or_make_list_for_buffer(app, heap, buffer);
     if (list != 0){
         Jump_Lister_Result jump = get_jump_index_from_user(app, list, "Function:");
+        View_ID view = get_active_view(app, Access_ReadVisible);
         jump_to_jump_lister_result(app, view, list, &jump);
     }
 }
