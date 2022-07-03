@@ -621,6 +621,18 @@ run_lister(Application_Links *app, Lister *lister){
                     
                     default:
                     {
+                        if (match_key_code(&in, KeyCode_V))
+                        {
+                            Input_Modifier_Set* mods = &in.event.key.modifiers;
+                            if (has_modifier(mods, KeyCode_Control))
+                            {
+                                if (lister->handlers.paste != 0) {
+                                    result = lister->handlers.paste(app);
+                                }
+                                break;
+                            }
+                        }
+
                         if (lister->handlers.key_stroke != 0){
                             result = lister->handlers.key_stroke(app);
                         }
@@ -776,6 +788,37 @@ lister_add_item(Lister *lister, String_Const_u8 string, String_Const_u8 status, 
                            lister_prealloced(push_string_copy(lister->arena, status)),
                            user_data, extra_space));
 }
+function Lister_Activation_Code
+lister__paste_string__default(Application_Links *app){
+     Scratch_Block scratch(app);
+
+    Lister_Activation_Code result = ListerActivation_Continue;
+    View_ID view = get_active_view(app, Access_Always);
+    Lister *lister = view_get_lister(app, view);
+    if (lister != 0){
+        clipboard_update_history_from_system(app, 0);
+        i32 count = clipboard_count(0);
+         if (count > 0) {
+            Managed_Scope scope = view_get_managed_scope(app, view);
+            i32* paste_index = scope_attachment(app, scope, view_paste_index_loc, i32);
+            if (paste_index != 0) {
+                *paste_index = 0;
+
+               
+                String_Const_u8 string = push_clipboard_index(scratch, 0, *paste_index);
+
+                if (string.str != 0 && string.size > 0){
+                    lister_append_text_field(lister, string);
+                    lister_append_key(lister, string);
+                    lister->item_index = 0;
+                    lister_zero_scroll(lister);
+                    lister_update_filtered_list(app, lister);
+                }
+            }
+        }
+    }
+    return(result);
+}
 
 function Lister_Activation_Code
 lister__write_string__default(Application_Links *app){
@@ -785,6 +828,7 @@ lister__write_string__default(Application_Links *app){
     if (lister != 0){
         User_Input in = get_current_input(app);
         String_Const_u8 string = to_writable(&in);
+   
         if (string.str != 0 && string.size > 0){
             lister_append_text_field(lister, string);
             lister_append_key(lister, string);
@@ -832,6 +876,7 @@ lister_get_default_handlers(void){
     handlers.write_character = lister__write_string__default;
     handlers.backspace       = lister__backspace_text_field__default;
     handlers.navigate        = lister__navigate__default;
+    handlers.paste = lister__paste_string__default;
     return(handlers);
 }
 
