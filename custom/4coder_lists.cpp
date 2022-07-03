@@ -518,6 +518,22 @@ CUSTOM_DOC("Interactively switch to an open buffer.")
     }
 }
 
+CUSTOM_UI_COMMAND_SIG(interactive_switch_other_window_buffer)
+CUSTOM_DOC("Interactively switch to an other window buffer.")
+{
+    change_active_panel_send_command(app, interactive_switch_buffer);
+}
+
+CUSTOM_UI_COMMAND_SIG(switch_other_window)
+CUSTOM_DOC("switch to an other window.")
+{
+  View_ID view = get_active_view(app, Access_Always);
+    view = get_next_view_looped_primary_panels(app, view, Access_Always);
+    if (view != 0){
+        view_set_active(app, view);
+    }
+}
+
 CUSTOM_UI_COMMAND_SIG(interactive_kill_buffer)
 CUSTOM_DOC("Interactively kill an open buffer.")
 {

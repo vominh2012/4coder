@@ -1724,6 +1724,18 @@ get_cpp_matching_file(Application_Links *app, Buffer_ID buffer, Buffer_ID *buffe
 }
 
 CUSTOM_COMMAND_SIG(open_matching_file_cpp)
+CUSTOM_DOC("If the current file is a *.cpp or *.h, attempts to open the corresponding *.h or *.cpp file in the view.")
+{
+    View_ID view = get_active_view(app, Access_Always);
+    Buffer_ID buffer = view_get_buffer(app, view, Access_Always);
+    Buffer_ID new_buffer = 0;
+    if (get_cpp_matching_file(app, buffer, &new_buffer)){
+        view_set_buffer(app, view, new_buffer, 0);
+        view_set_active(app, view);
+    }
+}
+
+CUSTOM_COMMAND_SIG(open_matching_file_cpp_other)
 CUSTOM_DOC("If the current file is a *.cpp or *.h, attempts to open the corresponding *.h or *.cpp file in the other view.")
 {
     View_ID view = get_active_view(app, Access_Always);
