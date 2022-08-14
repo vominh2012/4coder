@@ -200,6 +200,68 @@ App_Read_Command_Line_Sig(app_read_command_line){
     return(models);
 }
 
+String_u8 read_entire_file(Arena *arena, String8 filename) {
+    String_u8 result = {0, 0};
+    
+    FILE *f = fopen((char*)filename.str, "rb");
+    if (f) {
+        fseek(f, 0, SEEK_END);
+        long size = ftell(f);
+        fseek(f, 0, SEEK_SET);
+        if (size > 0) {
+            result.str = push_array_zero(arena, u8, size + 1);
+            result.size = size;
+            fread(result.str, size, 1, f);
+            result.size = size;
+        }
+        fclose(f);
+    }
+    return result;
+};
+
+function void set_language_info(Arena *arena, TSLanguageData *lang_data, String_Const_u8 dll_name, char *function_name, char *query_file, String_Const_u8 extensions,
+                                b32 support_virtual_whilespace = false, b32 support_auto_indent = false)
+{
+    String8 binary_path = system_get_path(arena, SystemPath_Binary);
+    String8 full_dll_path = push_u8_stringf(arena, "%.*s/%.*s", string_expand(binary_path), string_expand(dll_name));
+    String8 full_query_file_path = push_u8_stringf(arena, "%.*s/%s", string_expand(binary_path), query_file);
+    
+    lang_data->dll_name = full_dll_path;
+    lang_data->function_name = function_name;
+    lang_data->extensions = extensions;
+    lang_data->query_string = read_entire_file(arena, full_query_file_path);
+    lang_data->support_virtual_whilespace = support_virtual_whilespace;
+    lang_data->support_auto_indent = support_auto_indent;
+}
+
+void tree_sitter_init(Arena *arena, TSLanguageData *langs)
+{
+    dll_init_sentinel(langs);
+    
+    int max_lang = 10;
+    int c = 0;
+    
+    
+    TSLanguageData *lang_data = push_array(arena, TSLanguageData, max_lang);
+    set_language_info(arena, &lang_data[c++], str8_lit("tree_sitter/cpp_scanner.dll"), "tree_sitter_cpp", "tree_sitter/cpp_query.scm", str8_lit(".h.cpp.cc.c.hpp"), true, true);
+    set_language_info(arena, &lang_data[c++], str8_lit("tree_sitter/js_scanner.dll"), "tree_sitter_javascript", "tree_sitter/js_query.scm", str8_lit(".js"));
+    set_language_info(arena, &lang_data[c++], str8_lit("tree_sitter/php_scanner.dll"), "tree_sitter_php", "tree_sitter/php_query.scm", str8_lit(".php"));
+    set_language_info(arena, &lang_data[c++], str8_lit("tree_sitter/java_scanner.dll"), "tree_sitter_java", "tree_sitter/java_query.scm", str8_lit(".java"));
+    set_language_info(arena, &lang_data[c++], str8_lit("tree_sitter/html_scanner.dll"), "tree_sitter_html", "tree_sitter/html_query.scm", str8_lit(".html.htm"));
+    set_language_info(arena, &lang_data[c++], str8_lit("tree_sitter/css_scanner.dll"), "tree_sitter_css", "tree_sitter/css_query.scm", str8_lit(".css"));
+    set_language_info(arena, &lang_data[c++], str8_lit("tree_sitter/json_scanner.dll"), "tree_sitter_json", "tree_sitter/json_query.scm", str8_lit(".json"));
+    set_language_info(arena, &lang_data[c++], str8_lit("tree_sitter/python_scanner.dll"), "tree_sitter_python", "tree_sitter/python_query.scm", str8_lit(".py"));
+    set_language_info(arena, &lang_data[c++], str8_lit("tree_sitter/bash_scanner.dll"), "tree_sitter_bash", "tree_sitter/bash_query.scm", str8_lit(".sh"));
+    
+    Assert(c <= max_lang);
+    for (int i = 0; i < c; ++i)
+    {
+        dll_insert_back(langs, &lang_data[i]);
+    }
+    
+}
+
+
 App_Init_Sig(app_init){
     Models *models = (Models*)base_ptr;
     models->keep_playing = true;
@@ -257,6 +319,9 @@ App_Init_Sig(app_init){
     // NOTE(allen):
     global_history_init(&models->global_history);
     text_layout_init(tctx, &models->text_layouts);
+    
+    // tree sitter init
+    tree_sitter_init(models->arena, &models->langs);
     
     // NOTE(allen): style setup
     {

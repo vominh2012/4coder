@@ -4,9 +4,21 @@
 
 // TOP
 
+struct TSData {
+    void *language_data;
+    
+    TSParser *parser;
+    TSTree *tree;
+    TSQueryCursor *query_cursor;
+    TSRange range;
+};
+
+
+
 #define scope_attachment(app,S,I,T) ((T*)managed_scope_get_attachment((app), (S), (I), sizeof(T)))
 #define set_custom_hook(app,ID,F) set_custom_hook((app),(ID),(Void_Func*)(F))
 
+function String_Const_u8 push_clipboard_index(Arena *arena, i32 clipboard_id, i32 item_index);
 ////////////////////////////////
 
 function i32
@@ -60,6 +72,20 @@ get_token_array_from_buffer(Application_Links *app, Buffer_ID buffer){
     }
     return(result);
 }
+
+function TSData*
+get_tree_sitter_data_from_buffer(Application_Links *app, Buffer_ID buffer){
+    TSData *result = 0;
+    Managed_Scope scope = buffer_get_managed_scope(app, buffer);
+    
+    TSData* ptr = scope_attachment(app, scope, tree_sitter_attachment_tsdata, TSData);
+    if (ptr != 0){
+        result = ptr;
+    }
+    return(result);
+}
+
+
 
 ////////////////////////////////
 
@@ -1550,6 +1576,14 @@ query_user_general(Application_Links *app, Query_Bar *bar, b32 force_number, Str
             bar->string = backspace_utf8(bar->string);
         }
         else if (good_insert){
+            String_u8 string = Su8(bar->string.str, bar->string.size, bar->string_capacity);
+            string_append(&string, insert_string);
+            bar->string.size = string.string.size;
+        }
+        else if (match_key_code(&in, KeyCode_V) && has_modifier(&in.event.key.modifiers, KeyCode_Control))
+        {
+            Scratch_Block scratch(app);
+            String_Const_u8 insert_string = push_clipboard_index(scratch, 0, 0);
             String_u8 string = Su8(bar->string.str, bar->string.size, bar->string_capacity);
             string_append(&string, insert_string);
             bar->string.size = string.string.size;

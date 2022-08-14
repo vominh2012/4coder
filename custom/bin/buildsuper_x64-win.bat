@@ -34,7 +34,7 @@ if "%2" == "release" (set mode=%release%)
 set binname=%3
 if "%binname%" == "" set binname="custom_4coder"
 
-set opts=/W4 /wd4310 /wd4100 /wd4201 /wd4505 /wd4996 /wd4127 /wd4510 /wd4512 /wd4610 /wd4457 /WX
+set opts=/W0 /wd4310 /wd4100 /wd4201 /wd4505 /wd4996 /wd4127 /wd4510 /wd4512 /wd4610 /wd4457 /WX /Zc:strictStrings-
 set opts=%opts% /GR- /nologo /FC
 set opts=%opts% -I"%custom_root%"
 set opts=%opts% /D OS_WINDOWS=1 /D OS_LINUX=0 /D OS_MAC=0
@@ -43,7 +43,7 @@ set opts=%opts% %mode%
 set preproc_file=4coder_command_metadata.i
 set meta_opts=/P /Fi"%preproc_file%" /DMETA_PASS
 
-set build_dll=/LD /link /INCREMENTAL:NO /OPT:REF /RELEASE /PDBALTPATH:%%%%_PDB%%%%
+set build_dll=/LD /link %custom_root%/tree_sitter/build/tree_sitter_cpp.lib /INCREMENTAL:NO /OPT:REF /RELEASE /PDBALTPATH:%%%%_PDB%%%%
 set build_dll=%build_dll% /EXPORT:get_version /EXPORT:init_apis
 
 call cl %opts% %meta_opts% "%target%"

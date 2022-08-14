@@ -144,6 +144,8 @@
 
 #include "4coder_examples.cpp"
 
+#include "4coder_huan\4coder_huan_brace.cpp"
+#include "4coder_huan\4coder_huan_error_annotations.cpp"
 #include "4coder_default_hooks.cpp"
 
 #endif

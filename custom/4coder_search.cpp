@@ -156,7 +156,10 @@ internal void
 list_all_locations__generic_identifier(Application_Links *app, List_All_Locations_Flag flags){
     Scratch_Block scratch(app);
     String_Const_u8 needle = push_token_or_word_under_active_cursor(app, scratch);
-    list_all_locations__generic(app, needle, flags);
+    if (needle.size > 1) // avoid hanging require search text size more than one character
+    {
+        list_all_locations__generic(app, needle, flags);
+    }
 }
 
 internal void

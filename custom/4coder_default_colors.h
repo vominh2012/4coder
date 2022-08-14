@@ -46,6 +46,10 @@ CUSTOM_ID(colors, defcolor_text_cycle);
 CUSTOM_ID(colors, defcolor_line_numbers_back);
 CUSTOM_ID(colors, defcolor_line_numbers_text);
 
+// MY NEW custom colors
+CUSTOM_ID(colors, defcolor_function);
+CUSTOM_ID(colors, defcolor_type);
+
 struct Color_Table_Node{
     Color_Table_Node *next;
     String_Const_u8 name;

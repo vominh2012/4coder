@@ -1984,6 +1984,7 @@ managed_scope_get_attachment(Application_Links *app, Managed_Scope scope, Manage
             result = data.str;
         }
         else{
+            Assert(0);
 #define M \
 "ERROR: scope attachment already exists with a size smaller than the requested size; no attachment pointer can be returned."
             print_message(app, string_u8_litexpr(M));
@@ -2366,6 +2367,14 @@ set_custom_hook_memory_size(Application_Links *app, Hook_ID hook_id, u64 size){
         }break;
     }
     return(result);
+}
+
+
+api(custom) function TSLanguageData*
+get_languages(Application_Links *app)
+{
+    Models *models = (Models*)app->cmd_context;
+    return &models->langs;
 }
 
 api(custom) function Mouse_State

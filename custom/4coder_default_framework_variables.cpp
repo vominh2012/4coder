@@ -20,11 +20,15 @@ CUSTOM_ID(attachment, view_previous_buffer);
 
 CUSTOM_ID(attachment, buffer_map_id);
 CUSTOM_ID(attachment, buffer_eol_setting);
+CUSTOM_ID(attachment, buffer_auto_indent_setting);
+CUSTOM_ID(attachment, buffer_virtual_whilespace_setting);
 CUSTOM_ID(attachment, buffer_lex_task);
+CUSTOM_ID(attachment, buffer_tree_sitter_task);
 CUSTOM_ID(attachment, buffer_wrap_lines);
 
 CUSTOM_ID(attachment, sticky_jump_marker_handle);
 CUSTOM_ID(attachment, attachment_tokens);
+CUSTOM_ID(attachment, tree_sitter_attachment_tsdata);
 
 ////////////////////////////////
 

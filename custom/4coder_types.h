@@ -795,6 +795,31 @@ struct Process_State{
     i64 return_code;
 };
 
+api(custom) typedef struct capture_token {
+    char *capture_name;
+    u32 capture_name_size;
+    
+    u32 token_kind;
+} capture_token;
+
+api(custom) typedef struct TSLanguageData {
+    TSLanguageData *next;
+    TSLanguageData *prev;
+    
+    String_Const_u8 extensions;
+    String_Const_u8 dll_name;
+    char *function_name;
+    String_u8 query_string;
+    
+    b32 support_virtual_whilespace;
+    b32 support_auto_indent;
+    
+    void *language;
+    void *query;
+    capture_token *capture_token_table;
+    u32 capture_token_table_size;
+}TSLanguageData;
+
 ////////////////////////////////
 
 // NOTE(allen): buffers are allocate with:

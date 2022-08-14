@@ -11,6 +11,7 @@ setup_default_mapping(Mapping *mapping, i64 global_id, i64 file_id, i64 code_id)
     
     SelectMap(global_id);
     Bind(keyboard_macro_start_recording , KeyCode_U, KeyCode_Control);
+    
     Bind(keyboard_macro_finish_recording, KeyCode_U, KeyCode_Control, KeyCode_Shift);
     Bind(keyboard_macro_replay,           KeyCode_U, KeyCode_Alt);
     Bind(change_active_panel,           KeyCode_W, KeyCode_Control);
@@ -31,7 +32,7 @@ setup_default_mapping(Mapping *mapping, i64 global_id, i64 file_id, i64 code_id)
     Bind(open_all_code_recursive, KeyCode_L, KeyCode_Control, KeyCode_Shift);
     Bind(goto_jump_at_cursor,  KeyCode_G, KeyCode_Control, KeyCode_Shift);
     
-
+    
     Bind(project_go_to_root_directory,  KeyCode_H, KeyCode_Control);
     Bind(change_to_build_panel,         KeyCode_Period, KeyCode_Alt);
     Bind(close_build_panel,             KeyCode_Comma, KeyCode_Alt);
@@ -90,12 +91,13 @@ setup_default_mapping(Mapping *mapping, i64 global_id, i64 file_id, i64 code_id)
     //Bind(replace_in_range,            KeyCode_A, KeyCode_Control);
     Bind(select_all,            KeyCode_A, KeyCode_Control);
     Bind(copy,                        KeyCode_C, KeyCode_Control);
+    Bind(copy_identifier,                        KeyCode_C, KeyCode_Control, KeyCode_Shift);
     Bind(delete_range,                 KeyCode_D, KeyCode_Control, KeyCode_Shift);
     Bind(delete_line,                KeyCode_D, KeyCode_Control);
     Bind(center_view,                 KeyCode_E, KeyCode_Control);
     Bind(left_adjust_view,            KeyCode_E, KeyCode_Control, KeyCode_Shift);
     Bind(search,                      KeyCode_F, KeyCode_Control);
-    Bind(list_all_locations,          KeyCode_F, KeyCode_Control, KeyCode_Shift);
+    Bind(list_all_locations_of_identifier_case_insensitive, KeyCode_F, KeyCode_Control, KeyCode_Shift);
     Bind(list_all_substring_locations_case_insensitive, KeyCode_F, KeyCode_Alt);
     Bind(goto_line,                   KeyCode_G, KeyCode_Control);
     //Bind(list_all_locations_of_selection,  KeyCode_G, KeyCode_Control, KeyCode_Shift);

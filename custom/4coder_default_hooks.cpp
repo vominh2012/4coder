@@ -24,6 +24,27 @@ CUSTOM_DOC("Default command for responding to a startup event")
         def_audio_init();
     }
     
+    // NOTE(rjf): Small code font.
+    {
+        Face_Description normal_code_desc = get_face_description(app, get_face_id(app, 0));
+        
+        Face_Description desc = {0};
+        {
+            Scratch_Block scratch(app);
+            desc.font.file_name =  def_search_normal_full_path(scratch, str8_lit("fonts/Inconsolata-Regular.ttf"));
+            desc.parameters.pt_size = normal_code_desc.parameters.pt_size - 2;
+            desc.parameters.bold = 1;
+            desc.parameters.italic = 1;
+            desc.parameters.hinting = 0;
+        }
+        
+        global_small_code_face = try_create_new_face(app, &desc);
+        if (!global_small_code_face) {
+            global_small_code_face = try_create_new_face(app, &normal_code_desc);
+        }
+    }
+    
+    
     {
         def_enable_virtual_whitespace = def_get_config_b32(vars_save_string_lit("enable_virtual_whitespace"));
         clear_all_layouts(app);
@@ -281,45 +302,52 @@ default_render_buffer(Application_Links *app, View_ID view_id, Face_ID face_id,
     f32 cursor_roundness = metrics.normal_advance*cursor_roundness_100*0.01f;
     f32 mark_thickness = (f32)def_get_config_u64(app, vars_save_string_lit("mark_thickness"));
     
-    // NOTE(allen): Token colorizing
     Token_Array token_array = get_token_array_from_buffer(app, buffer);
-    if (token_array.tokens != 0){
-        draw_cpp_token_colors(app, text_layout_id, &token_array);
-        
-        // NOTE(allen): Scan for TODOs and NOTEs
-        b32 use_comment_keyword = def_get_config_b32(vars_save_string_lit("use_comment_keyword"));
-        if (use_comment_keyword){
-            Comment_Highlight_Pair pairs[] = {
-                {string_u8_litexpr("NOTE"), finalize_color(defcolor_comment_pop, 0)},
-                {string_u8_litexpr("TODO"), finalize_color(defcolor_comment_pop, 1)},
-            };
-            draw_comment_highlights(app, buffer, text_layout_id, &token_array, pairs, ArrayCount(pairs));
-        }
-        
+    
+    b32 use_tree_sitter = def_get_config_b32(vars_save_string_lit("use_tree_sitter"));
+    
 #if 0
-        // TODO(allen): Put in 4coder_draw.cpp
-        // NOTE(allen): Color functions
-        
-        Scratch_Block scratch(app);
-        ARGB_Color argb = 0xFFFF00FF;
-        
-        Token_Iterator_Array it = token_iterator_pos(0, &token_array, visible_range.first);
-        for (;;){
-            if (!token_it_inc_non_whitespace(&it)){
-                break;
-            }
-            Token *token = token_it_read(&it);
-            String_Const_u8 lexeme = push_token_lexeme(app, scratch, buffer, token);
-            Code_Index_Note *note = code_index_note_from_string(lexeme);
-            if (note != 0 && note->note_kind == CodeIndexNote_Function){
-                paint_text_color(app, text_layout_id, Ii64_size(token->pos, token->size), argb);
+    // disable tree sitter for large file, quite bad performance cause lagging!
+    if (buffer_get_size(app, buffer) > MB(1))
+    {
+        use_tree_sitter = false;
+    }
+#endif
+    
+    if (use_tree_sitter) 
+    {
+        TSData *ts_data = get_tree_sitter_data_from_buffer(app, buffer);
+        if (ts_data && ts_data->language_data)
+        {
+            draw_visible_text(app, buffer, text_layout_id);
+            draw_tree_sitter_cpp_token_colors(app, buffer, text_layout_id, ts_data);
+        }
+        else
+        {
+            paint_text_color_fcolor(app, text_layout_id, visible_range, fcolor_id(defcolor_text_default));
+        }
+    }
+    else
+    {
+        // NOTE(allen): Token colorizing
+        if (token_array.tokens != 0){
+            draw_cpp_token_colors(app, text_layout_id, &token_array);
+            
+            // NOTE(allen): Scan for TODOs and NOTEs
+            b32 use_comment_keyword = def_get_config_b32(vars_save_string_lit("use_comment_keyword"));
+            if (use_comment_keyword){
+                Comment_Highlight_Pair pairs[] = {
+                    {string_u8_litexpr("NOTE"), finalize_color(defcolor_comment_pop, 0)},
+                    {string_u8_litexpr("TODO"), finalize_color(defcolor_comment_pop, 1)},
+                };
+                draw_comment_highlights(app, buffer, text_layout_id, &token_array, pairs, ArrayCount(pairs));
             }
         }
-#endif
+        else{
+            paint_text_color_fcolor(app, text_layout_id, visible_range, fcolor_id(defcolor_text_default));
+        }
     }
-    else{
-        paint_text_color_fcolor(app, text_layout_id, visible_range, fcolor_id(defcolor_text_default));
-    }
+    
     
     i64 cursor_pos = view_correct_cursor(app, view_id);
     view_correct_mark(app, view_id);
@@ -390,6 +418,26 @@ default_render_buffer(Application_Links *app, View_ID view_id, Face_ID face_id,
         }break;
     }
     
+    
+    // NOTE(rjf): Brace annotations
+    {
+        F4_Brace_RenderCloseBraceAnnotation(app, buffer, text_layout_id, cursor_pos);
+    }
+    
+    // NOTE(rjf): Brace lines
+    {
+        F4_Brace_RenderLines(app, buffer, view_id, text_layout_id, cursor_pos);
+    }
+    
+    // NOTE(rjf): Error annotations
+    {
+        String_Const_u8 name = string_u8_litexpr("*compilation*");
+        Buffer_ID compilation_buffer = get_buffer_by_name(app, name, Access_Always);
+        F4_RenderErrorAnnotations(app, buffer, text_layout_id, compilation_buffer);
+    }
+    
+    
+    
     // NOTE(allen): Fade ranges
     paint_fade_ranges(app, text_layout_id, buffer);
     
@@ -419,7 +467,7 @@ default_draw_query_bars(Application_Links *app, Rect_f32 region, View_ID view_id
 
 function void
 default_render_caller(Application_Links *app, Frame_Info frame_info, View_ID view_id){
-    ProfileScope(app, "default render caller");
+    //ProfileScope(app, "default render caller");
     View_ID active_view = get_active_view(app, Access_Always);
     b32 is_active_view = (active_view == view_id);
     
@@ -667,6 +715,46 @@ parse_async__inner(Async_Context *actx, Buffer_ID buffer_id,
     }
 }
 
+function u32 token_kind_from_capture_name(char *capture_name, u32 capture_name_size)
+{
+    struct string_token {
+        char *str;
+        u32 str_size;
+        
+        Token_Base_Kind token_kind;
+    };
+    
+    const string_token string_token_table[] = {
+        {cstring_expand("comment"), TokenBaseKind_Comment},
+        {cstring_expand("string"), TokenBaseKind_LiteralString},
+        {cstring_expand("number"), TokenBaseKind_LiteralInteger},
+        {cstring_expand("constant"), TokenBaseKind_LiteralInteger},
+        {cstring_expand("boolean"), TokenBaseKind_LiteralInteger},
+        {cstring_expand("keyword"), TokenBaseKind_Keyword},
+        {cstring_expand("attribute"), TokenBaseKind_Keyword},
+        {cstring_expand("conditional"), TokenBaseKind_Keyword},
+        {cstring_expand("repeat"), TokenBaseKind_Keyword},
+        {cstring_expand("type"), TokenBaseKind_Type},
+        {cstring_expand("function"), TokenBaseKind_Function},
+        {cstring_expand("method"), TokenBaseKind_Function},
+        {cstring_expand("include"), TokenBaseKind_Preprocessor},
+        {cstring_expand("tag"), TokenBaseKind_Keyword},
+    };
+    
+    // colors: keyword, type, function, constant, string, number, comment
+    
+    for( u32 k = 0; k < ArrayCount(string_token_table); ++k)
+    {
+        string_token item = string_token_table[k];
+        if (str_begin_with(capture_name, capture_name_size, item.str, item.str_size))
+        {
+            return item.token_kind;
+        }
+    }
+    
+    return 0;
+}
+
 function void
 do_full_lex_async__inner(Async_Context *actx, Buffer_ID buffer_id){
     Application_Links *app = actx->app;
@@ -701,9 +789,9 @@ do_full_lex_async__inner(Async_Context *actx, Buffer_ID buffer_id){
     }
     
     if (!canceled){
-        ProfileBlock(app, "async lex save results (before mutex)");
+        //ProfileBlock(app, "async lex save results (before mutex)");
         acquire_global_frame_mutex(app);
-        ProfileBlock(app, "async lex save results (after mutex)");
+        //ProfileBlock(app, "async lex save results (after mutex)");
         Managed_Scope scope = buffer_get_managed_scope(app, buffer_id);
         if (scope != 0){
             Base_Allocator *allocator = managed_scope_allocator(app, scope);
@@ -729,81 +817,132 @@ do_full_lex_async(Async_Context *actx, String_Const_u8 data){
     }
 }
 
+
+void* get_library_function(Arena *arena, String_Const_u8 dll_name, char *function_name) {
+    void *func = 0;
+    System_Library lib;
+    if (system_load_library(arena, dll_name, &lib)){
+        func = system_get_proc(lib, function_name);
+        if (!func) {
+            system_release_library(lib);
+        }
+    }
+    
+    return func;
+}
+
+TSLanguage *get_library_language(Arena *arena, String_Const_u8 dll_name, char *function_name)
+{
+    typedef TSLanguage*(__stdcall *tree_sitter_scanner)();
+    
+    TSLanguage *lang = 0;
+    tree_sitter_scanner scanner = (tree_sitter_scanner)get_library_function(arena, dll_name, function_name);
+    if (scanner)
+    {
+        lang = scanner();
+    }
+    
+    return lang;
+}
+
+function bool initialize_language_data(Arena *arena, TSLanguageData *lang)
+{
+    bool success = false;
+    TSQuery *query = 0;
+    
+    TSLanguage *language = get_library_language(arena, lang->dll_name, lang->function_name); 
+    if (language)
+    {
+        TSQueryError error_type = TSQueryErrorNone;
+        u32 error_offset = 0;
+        query = ts_query_new(language,
+                             (char*)lang->query_string.str,
+                             lang->query_string.size,
+                             &error_offset,
+                             &error_type);
+        
+        if (query && error_type == TSQueryErrorNone)
+        {
+            
+            u32 capture_count = ts_query_capture_count(query);
+            lang->capture_token_table = (capture_token*)malloc(sizeof(capture_token) *  capture_count);
+            lang->capture_token_table_size = capture_count;
+            
+            for (u32 i = 0; i < capture_count; ++i)
+            {
+                u32 capture_name_size = 0;
+                char *capture_name = (char*)ts_query_capture_name_for_id(query,
+                                                                         i,
+                                                                         &capture_name_size);
+                if (capture_name && capture_name_size > 0)
+                {
+                    lang->capture_token_table[i].capture_name = capture_name;
+                    lang->capture_token_table[i].capture_name_size = capture_name_size;
+                    lang->capture_token_table[i].token_kind = token_kind_from_capture_name(capture_name, capture_name_size);
+                }
+            }
+            
+            lang->language = language;
+            lang->query = query;
+            success = true;
+        }
+    }
+    
+    if (!success) {
+        if (language) {
+            // TODO: free language ??
+        }
+        if (query)
+        {
+            ts_query_delete(query);
+        }
+    }
+    return success;
+}
+
 BUFFER_HOOK_SIG(default_begin_buffer){
     ProfileScope(app, "begin buffer");
     
     Scratch_Block scratch(app);
     
     b32 treat_as_code = false;
+    TSLanguageData *buffer_language = 0;
+    
+    b32 enable_virtual_whitespace = def_get_config_b32(vars_save_string_lit("enable_virtual_whitespace"));
+    b32 auto_indent = def_get_config_b32(vars_save_string_lit("automatically_indent_text_on_save"));
+    
     String_Const_u8 file_name = push_buffer_file_name(app, scratch, buffer_id);
     if (file_name.size > 0){
         String_Const_u8 treat_as_code_string = def_get_config_string(scratch, vars_save_string_lit("treat_as_code"));
-        String_Const_u8_Array extensions = parse_extension_line_to_extension_list(app, scratch, treat_as_code_string);
+        
         String_Const_u8 ext = string_file_extension(file_name);
-        for (i32 i = 0; i < extensions.count; ++i){
-            if (string_match(ext, extensions.strings[i])){
+        
+        // Tree sitter lazy load and keep it alive with process
+        TSLanguageData *langs = get_languages(app);
+        for (TSLanguageData *lang = langs->next; lang != langs && !buffer_language; lang = lang->next)
+        {
+            String_Const_u8_Array extensions = parse_extension_line_to_extension_list(app, scratch, lang->extensions);
+            
+            for (i32 i = 0; i < extensions.count; ++i){
                 
-                if (string_match(ext, string_u8_litexpr("cpp")) ||
-                    string_match(ext, string_u8_litexpr("h")) ||
-                    string_match(ext, string_u8_litexpr("c")) ||
-                    string_match(ext, string_u8_litexpr("hpp")) ||
-                    string_match(ext, string_u8_litexpr("cc"))){
-                    treat_as_code = true;
-                }
-                
-#if 0
-                treat_as_code = true;
-                
-                if (string_match(ext, string_u8_litexpr("cs"))){
-                    if (parse_context_language_cs == 0){
-                        init_language_cs(app);
+                if (string_match(ext, extensions.strings[i])){
+                    
+                    if (!lang->language) {
+                        initialize_language_data(scratch, lang);
                     }
-                    parse_context_id = parse_context_language_cs;
-                }
-                
-                if (string_match(ext, string_u8_litexpr("java"))){
-                    if (parse_context_language_java == 0){
-                        init_language_java(app);
+                    
+                    if (lang->language) {
+                        treat_as_code = true;
+                        buffer_language = lang;
+                        if (!lang->support_virtual_whilespace) {
+                            enable_virtual_whitespace = false;
+                        }
+                        if (!lang->support_auto_indent) {
+                            auto_indent = false;
+                        }
+                        break;
                     }
-                    parse_context_id = parse_context_language_java;
                 }
-                
-                if (string_match(ext, string_u8_litexpr("rs"))){
-                    if (parse_context_language_rust == 0){
-                        init_language_rust(app);
-                    }
-                    parse_context_id = parse_context_language_rust;
-                }
-                
-                if (string_match(ext, string_u8_litexpr("cpp")) ||
-                    string_match(ext, string_u8_litexpr("h")) ||
-                    string_match(ext, string_u8_litexpr("c")) ||
-                    string_match(ext, string_u8_litexpr("hpp")) ||
-                    string_match(ext, string_u8_litexpr("cc"))){
-                    if (parse_context_language_cpp == 0){
-                        init_language_cpp(app);
-                    }
-                    parse_context_id = parse_context_language_cpp;
-                }
-                
-                // TODO(NAME): Real GLSL highlighting
-                if (string_match(ext, string_u8_litexpr("glsl"))){
-                    if (parse_context_language_cpp == 0){
-                        init_language_cpp(app);
-                    }
-                    parse_context_id = parse_context_language_cpp;
-                }
-                
-                // TODO(NAME): Real Objective-C highlighting
-                if (string_match(ext, string_u8_litexpr("m"))){
-                    if (parse_context_language_cpp == 0){
-                        init_language_cpp(app);
-                    }
-                    parse_context_id = parse_context_language_cpp;
-                }
-#endif
-                
-                break;
             }
         }
     }
@@ -816,6 +955,11 @@ BUFFER_HOOK_SIG(default_begin_buffer){
     Command_Map_ID *map_id_ptr = scope_attachment(app, scope, buffer_map_id, Command_Map_ID);
     *map_id_ptr = map_id;
     
+    b32* p_auto_indent = scope_attachment(app, scope, buffer_auto_indent_setting, b32);
+    b32 *p_virtual_whilespace = scope_attachment(app, scope, buffer_virtual_whilespace_setting, b32);
+    *p_auto_indent = auto_indent;
+    *p_virtual_whilespace = enable_virtual_whitespace;
+    
     Line_Ending_Kind setting = guess_line_ending_kind_from_buffer(app, buffer_id);
     Line_Ending_Kind *eol_setting = scope_attachment(app, scope, buffer_eol_setting, Line_Ending_Kind);
     *eol_setting = setting;
@@ -823,9 +967,11 @@ BUFFER_HOOK_SIG(default_begin_buffer){
     // NOTE(allen): Decide buffer settings
     b32 wrap_lines = true;
     b32 use_lexer = false;
+    b32 use_tree_sitter = false;
     if (treat_as_code){
         wrap_lines = def_get_config_b32(vars_save_string_lit("enable_code_wrapping"));
         use_lexer = true;
+        use_tree_sitter = def_get_config_b32(vars_save_string_lit("use_tree_sitter"));;
     }
     
     String_Const_u8 buffer_name = push_buffer_base_name(app, scratch, buffer_id);
@@ -837,6 +983,18 @@ BUFFER_HOOK_SIG(default_begin_buffer){
         ProfileBlock(app, "begin buffer kick off lexer");
         Async_Task *lex_task_ptr = scope_attachment(app, scope, buffer_lex_task, Async_Task);
         *lex_task_ptr = async_task_no_dep(&global_async_system, do_full_lex_async, make_data_struct(&buffer_id));
+    }
+    
+    if (use_tree_sitter && buffer_language){
+        ProfileBlock(app, "begin buffer kick off tree sitter");
+        TSData* ts_data = scope_attachment(app, scope, tree_sitter_attachment_tsdata, TSData);
+        ts_data->language_data = buffer_language;
+        
+        TSParser *parser = ts_parser_new();
+        ts_parser_set_language(parser, (TSLanguage*)(buffer_language->language));
+        ts_data->parser = parser;
+        
+        ts_data->query_cursor = ts_query_cursor_new();
     }
     
     {
@@ -916,14 +1074,15 @@ BUFFER_HOOK_SIG(default_new_file){
 BUFFER_HOOK_SIG(default_file_save){
     // buffer_id
     ProfileScope(app, "default file save");
+    Managed_Scope scope = buffer_get_managed_scope(app, buffer_id);
     
-    b32 auto_indent = def_get_config_b32(vars_save_string_lit("automatically_indent_text_on_save"));
-    b32 is_virtual = def_get_config_b32(vars_save_string_lit("enable_virtual_whitespace"));
+    b32 auto_indent = *scope_attachment(app, scope, buffer_auto_indent_setting, b32);
+    b32 is_virtual = *scope_attachment(app, scope, buffer_virtual_whilespace_setting, b32);
+    
     if (auto_indent && is_virtual){
         auto_indent_buffer(app, buffer_id, buffer_range(app, buffer_id));
     }
     
-    Managed_Scope scope = buffer_get_managed_scope(app, buffer_id);
     Line_Ending_Kind *eol = scope_attachment(app, scope, buffer_eol_setting,
                                              Line_Ending_Kind);
     switch (*eol){
@@ -1007,7 +1166,7 @@ BUFFER_EDIT_RANGE_SIG(default_buffer_edit_range){
                 do_full_relex = true;
             }
             else{
-                ProfileBlock(app, "apply resync");
+                //ProfileBlock(app, "apply resync");
                 
                 i64 token_index_resync = relex.first_resync_index;
                 
@@ -1048,6 +1207,27 @@ BUFFER_EDIT_RANGE_SIG(default_buffer_edit_range){
                                           make_data_struct(&buffer_id));
     }
     
+    bool use_tree_sitter = def_get_config_b32(vars_save_string_lit("use_tree_sitter"));;
+    if (use_tree_sitter)
+    {
+        TSData* ts_data = scope_attachment(app, scope, tree_sitter_attachment_tsdata, TSData);
+        if (ts_data && ts_data->language_data) 
+        {
+            // clear cache, next time render do reparse
+            ts_data->range.start_byte = 0;
+            ts_data->range.end_byte = 0;
+            
+            if (ts_data->tree) {
+                TSInputEdit edit = {};
+                edit.start_byte = (u32)old_range.start;
+                edit.old_end_byte = (u32)old_range.end;
+                edit.new_end_byte = (u32)new_range.end;
+                ts_tree_edit(ts_data->tree, &edit);
+            }
+            
+        }
+    }
+    
     // no meaning for return
     return(0);
 }
@@ -1058,6 +1238,23 @@ BUFFER_HOOK_SIG(default_end_buffer){
     if (lex_task_ptr != 0){
         async_task_cancel(app, &global_async_system, *lex_task_ptr);
     }
+    
+    TSData* ts_data = scope_attachment(app, scope, tree_sitter_attachment_tsdata, TSData);
+    if (ts_data != 0){
+        if (ts_data->query_cursor)
+        {
+            ts_query_cursor_delete(ts_data->query_cursor);
+        }
+        if (ts_data->tree) 
+        {
+            ts_tree_delete(ts_data->tree);
+        }
+        if (ts_data->parser)
+        {
+            ts_parser_delete(ts_data->parser);
+        }
+    }
+    
     buffer_unmark_as_modified(buffer_id);
     code_index_lock();
     code_index_erase_file(buffer_id);
@@ -1071,9 +1268,9 @@ default_view_change_buffer(Application_Links *app, View_ID view_id,
                            Buffer_ID old_buffer_id, Buffer_ID new_buffer_id){
     Managed_Scope scope = view_get_managed_scope(app, view_id);
     Buffer_ID *prev_buffer_id = scope_attachment(app, scope, view_previous_buffer, Buffer_ID);
-	if (prev_buffer_id != 0){
-		*prev_buffer_id = old_buffer_id;
-	}
+    if (prev_buffer_id != 0){
+        *prev_buffer_id = old_buffer_id;
+    }
 }
 
 internal void

@@ -151,6 +151,9 @@ set_default_color_scheme(Application_Links *app){
     default_color_table.arrays[defcolor_line_numbers_back] = make_colors(arena, 0xFF101010);
     default_color_table.arrays[defcolor_line_numbers_text] = make_colors(arena, 0xFF404040);
     
+    default_color_table.arrays[defcolor_function] = make_colors(arena, 0xFF4271AE);
+    default_color_table.arrays[defcolor_type] = make_colors(arena, 0xFF4271AE);
+    
     active_color_table = default_color_table;
 }
 

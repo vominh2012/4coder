@@ -116,6 +116,20 @@ CUSTOM_DOC("Copy the text in the range from the cursor to the mark onto the clip
     clipboard_post_buffer_range(app, 0, buffer, range);
 }
 
+CUSTOM_COMMAND_SIG(copy_identifier)
+CUSTOM_DOC("Copy the text in the range from the cursor to the mark onto the clipboard.")
+{
+    View_ID view = get_active_view(app, Access_ReadVisible);
+    Buffer_ID buffer = view_get_buffer(app, view, Access_ReadVisible);
+    if (buffer) 
+    {
+        i64 pos = view_get_cursor_pos(app, view);
+        Range_i64 range = enclose_pos_alpha_numeric_underscore(app, buffer, pos);
+        clipboard_post_buffer_range(app, 0, buffer, range);
+    }
+}
+
+
 CUSTOM_COMMAND_SIG(cut)
 CUSTOM_DOC("Cut the text in the range from the cursor to the mark onto the clipboard.")
 {

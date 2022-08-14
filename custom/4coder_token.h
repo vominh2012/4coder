@@ -25,8 +25,10 @@ enum{
     TokenBaseKind_ParentheticalOpen = 13,
     TokenBaseKind_ParentheticalClose = 14,
     TokenBaseKind_StatementClose = 15,
+    TokenBaseKind_Function = 16,
+    TokenBaseKind_Type = 17,
     
-    TokenBaseKind_COUNT = 16,
+    TokenBaseKind_COUNT = 18,
 };
 
 char *token_base_kind_names[] ={
@@ -45,6 +47,8 @@ char *token_base_kind_names[] ={
     "ScopeClose",
     "ParentheticalOpen",
     "ParentheticalClose",
+    "Function",
+    "Type",
 };
 
 typedef u16 Token_Base_Flag;
@@ -123,6 +127,14 @@ struct Token_Iterator{
         Token_Iterator_List list;
     };
 };
+
+
+extern "C" {
+#pragma warning(push, 0)
+#include "tree_sitter/include/tree_sitter/api.h"
+#pragma warning( pop )
+}
+
 
 #endif
 

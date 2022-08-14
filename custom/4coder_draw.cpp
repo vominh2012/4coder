@@ -534,6 +534,14 @@ get_token_color_cpp(Token token){
         {
             color = defcolor_float_constant;
         }break;
+        case TokenBaseKind_Function:
+        {
+            color = defcolor_function;
+        }break;
+        case TokenBaseKind_Type:
+        {
+            color = defcolor_type;
+        }break;
     }
     // specifics override generals
     switch (token.sub_kind){
@@ -564,6 +572,7 @@ draw_cpp_token_colors(Application_Links *app, Text_Layout_ID text_layout_id, Tok
     Range_i64 visible_range = text_layout_get_visible_range(app, text_layout_id);
     i64 first_index = token_index_from_pos(array, visible_range.first);
     Token_Iterator_Array it = token_iterator_index(0, array, first_index);
+    
     for (;;){
         Token *token = token_it_read(&it);
         if (token->pos >= visible_range.one_past_last){
@@ -574,6 +583,180 @@ draw_cpp_token_colors(Application_Links *app, Text_Layout_ID text_layout_id, Tok
         paint_text_color(app, text_layout_id, Ii64_size(token->pos, token->size), argb);
         if (!token_it_inc_all(&it)){
             break;
+        }
+    }
+}
+
+
+typedef struct cstring {
+    char *str;
+    size_t size;
+} cstring;
+
+#define cstring_expand(x) (x), (sizeof(x) - 1)
+
+cstring cstring_new(size_t size) {
+    cstring result = {0, 0};
+    result.str = (char*)malloc(size + 1);
+    if (result.str) {
+        result.str[size] = 0;
+        result.size = size;
+    }
+    return result;
+}
+
+void cstring_delete(cstring *s)
+{
+    if (s->str) {
+        free(s->str);
+        s->str = 0;
+        s->size = 0;
+    }
+}
+
+struct cstring read_entire_file(char *filename) {
+    cstring result = {0, 0};
+    
+    FILE *f = fopen(filename, "rb");
+    if (f) {
+        fseek(f, 0, SEEK_END);
+        long size = ftell(f);
+        fseek(f, 0, SEEK_SET);
+        if (size > 0) {
+            result = cstring_new(size);
+            fread(result.str, size, 1, f);
+            result.size = size;
+        }
+        fclose(f);
+    }
+    return result;
+};
+
+bool str_begin_with(char *str, int  str_size, char *begin, int begin_size)
+{
+    if (str_size < begin_size)
+    {
+        return false;
+    }
+    
+    for (int i = 0; i < begin_size; ++i)
+    {
+        if (str[i] != begin[i]) 
+        {
+            return false;
+        }
+    }
+    return true;
+}
+
+
+Token token_from_capture(TSQueryCapture capture, u32 token_kind, i64 offset)
+{
+    TSNode node = capture.node;
+    i64 start = ts_node_start_byte(node);
+    Token token = {start + offset, ts_node_end_byte(node) - start, token_kind};
+    
+    return token;
+}
+
+function void
+draw_visible_text(Application_Links *app, Buffer_ID buffer, Text_Layout_ID text_layout_id){
+    Range_i64 visible_range = text_layout_get_visible_range(app, text_layout_id);
+    
+    Token token_all = {visible_range.start, visible_range.end - visible_range.start};
+    FColor color = get_token_color_cpp(token_all);
+    ARGB_Color argb = fcolor_resolve(color);
+    paint_text_color(app, text_layout_id, Ii64_size(token_all.pos, token_all.size), argb);
+}
+
+function void
+draw_tree_sitter_cpp_token_colors(Application_Links *app, Buffer_ID buffer, Text_Layout_ID text_layout_id, TSData *ts_data){
+    ProfileScope(app, "draw_tree_sitter_cpp_token_colors");
+    
+    TSLanguageData *language_data = (TSLanguageData*)ts_data->language_data;
+    
+    Range_i64 visible_range = text_layout_get_visible_range(app, text_layout_id);
+    
+    TSRange range = { {}, {}, visible_range.start, visible_range.end};
+    
+    TSTree *tree = ts_data->tree;
+    
+    // validate range to decide reparse or use cached tree
+    bool reparse = ts_data->range.start_byte > range.start_byte || ts_data->range.end_byte < range.end_byte;
+    
+    if (reparse)
+    {
+        Scratch_Block scratch(app);
+        String_Const_u8 contents = push_whole_buffer(app, scratch, buffer);
+        if (contents.size > 0)
+        {
+            TSRange parse_range = range;
+            
+            if (contents.size > MB(1))
+            {
+                u32 extra = 256;
+                
+                // parser a bit futher for correct hightligh code
+                u32 end_extra = Min(parse_range.end_byte + extra, contents.size);
+                parse_range.end_byte = end_extra;
+                
+                u32 start_extra = 0;
+                if (start_extra < extra) start_extra = 0;
+                else start_extra = parse_range.start_byte - extra;
+                parse_range.start_byte = start_extra;
+            }
+            else // parse all if it small file 
+            {
+                parse_range.start_byte = 0;
+                parse_range.end_byte = contents.size;
+            }
+            
+            ts_parser_set_included_ranges(ts_data->parser, &parse_range, 1);
+            
+            // caching range for validate cache
+            ts_data->range = parse_range;
+        }
+        
+        tree = ts_parser_parse_string(ts_data->parser,
+                                      ts_data->tree,
+                                      (char*)contents.str,
+                                      contents.size);
+        if (tree)
+        {
+            if ( ts_data->tree)
+            {
+                ts_tree_delete(ts_data->tree);
+            }
+            ts_data->tree = tree;
+        }
+    }
+    
+    if (tree)
+    {
+        TSNode root_node = ts_tree_root_node(tree);
+        
+        TSQueryCursor* query_cursor = ts_data->query_cursor;
+        ts_query_cursor_set_byte_range(query_cursor, ts_data->range.start_byte, ts_data->range.end_byte);
+        ts_query_cursor_exec(query_cursor, (TSQuery*)language_data->query, root_node);
+        TSQueryMatch match;
+        while(ts_query_cursor_next_match(query_cursor, &match))
+        {
+            
+            for (int i = 0; i < match.capture_count; ++i)
+            {
+                TSQueryCapture  capture = match.captures[i];
+                
+                Assert(capture.index < language_data->capture_token_table_size);
+                u32 token_kind = language_data->capture_token_table[capture.index].token_kind;
+                Token token = token_from_capture(capture, token_kind, 0);
+                
+                if (token.pos >= visible_range.start)
+                {
+                    FColor color = get_token_color_cpp(token);
+                    ARGB_Color argb = fcolor_resolve(color);
+                    paint_text_color(app, text_layout_id, Ii64_size(token.pos, token.size), argb);
+                }
+            }
         }
     }
 }

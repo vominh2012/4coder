@@ -90,6 +90,8 @@ token_index_from_pos(Token *tokens, i64 count, i64 pos){
             i64 one_past_last = count;
             for (;;){
                 i64 index = (first + one_past_last) >> 1;
+                if (index == one_past_last)
+                    return result;
                 i64 index_pos = tokens[index].pos;
                 if (index_pos > pos){
                     one_past_last = index;

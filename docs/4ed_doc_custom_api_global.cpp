@@ -871,6 +871,9 @@ doc_custom_api__global(Arena *arena, API_Definition *api_def, Doc_Cluster *clust
     }
     
     ////////////////////////////////
+    if (begin_doc_call(arena, cluster, api_def, "get_languages", &func)){
+        doc_function_brief(arena, &func, "Get the languages context of tree sitter");
+    }
     
     if (begin_doc_call(arena, cluster, api_def, "get_mouse_state", &func)){
         doc_function_brief(arena, &func, "Get the state of the mouse as of this frame");

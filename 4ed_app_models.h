@@ -143,6 +143,9 @@ struct Models{
     
     b8 in_render_mode;
     Render_Target *target;
+    
+    // Tree sitter
+    TSLanguageData langs;
 };
 
 ////////////////////////////////

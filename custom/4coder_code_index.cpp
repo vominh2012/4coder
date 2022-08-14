@@ -867,8 +867,8 @@ generic_parse_full_input_breaks(Code_Index_File *index, Generic_Parse_State *sta
                 cpp_parse_function(index, state, 0);
             }
             else if (token->sub_kind == TokenCppKind_Asm 
-                || token->sub_kind == TokenCppKind__Asm
-                || token->sub_kind == TokenCppKind___Asm)
+                     || token->sub_kind == TokenCppKind__Asm
+                     || token->sub_kind == TokenCppKind___Asm)
             {
                 generic_parse_inc(state);
                 Code_Index_Nest *nest = asm_parse_scope(index, state);
@@ -1287,7 +1287,8 @@ function Layout_Item_List
 layout_virt_indent_index(Application_Links *app, Arena *arena, Buffer_ID buffer, Range_i64 range, Face_ID face, f32 width, Layout_Wrap_Kind kind){
     Layout_Item_List result = {};
     
-    b32 enable_virtual_whitespace = def_get_config_b32(vars_save_string_lit("enable_virtual_whitespace"));
+    Managed_Scope scope = buffer_get_managed_scope(app, buffer);
+    b32 enable_virtual_whitespace = *scope_attachment(app, scope, buffer_virtual_whilespace_setting, b32);
     if (enable_virtual_whitespace){
         code_index_lock();
         Code_Index_File *file = code_index_get_file(buffer);
