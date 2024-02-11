@@ -74,6 +74,9 @@ CUSTOM_DOC("Jump to the first definition in the code index matching an identifie
         Scratch_Block scratch(app);
         String_Const_u8 query = push_token_or_word_under_active_cursor(app, scratch);
         
+        Buffer_ID found_buffer = 0;
+        Code_Index_Note *found_note = 0;
+        
         code_index_lock();
         for (Buffer_ID buffer = get_buffer_next(app, 0, Access_Always);
              buffer != 0;
@@ -83,14 +86,35 @@ CUSTOM_DOC("Jump to the first definition in the code index matching an identifie
                 for (i32 i = 0; i < file->note_array.count; i += 1){
                     Code_Index_Note *note = file->note_array.ptrs[i];
                     if (string_match(note->text, query)){
-                        point_stack_push_view_cursor(app, view);
-                        jump_to_location(app, view, buffer, note->pos.first);
-                        goto done;
+                        if (note->note_kind == CodeIndexNote_Function)
+                        {
+                            found_buffer = buffer;
+                            found_note = note;
+                            goto done;
+                        }
+                        else
+                        {
+                            if (!found_note)
+                            {
+                                found_buffer = buffer;
+                                found_note = note;
+                                continue;
+                            } 
+                            else // found more than one of defination return first one
+                            {
+                                goto done;
+                            }
+                        }
                     }
                 }
             }
         }
         done:;
+        if (found_note) 
+        {
+            point_stack_push_view_cursor(app, view);
+            jump_to_location(app, view, found_buffer, found_note->pos.first);
+        }
         code_index_unlock();
     }
 }
