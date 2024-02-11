@@ -172,7 +172,6 @@ struct Win32_Vars{
     String_Const_u8 binary_path;
     
     b8 clip_catch_all;
-    b8 next_clipboard_is_self;
     DWORD clipboard_sequence;
     Plat_Handle clip_wakeup_timer;
     
@@ -425,9 +424,13 @@ win32_post_clipboard(Arena *scratch, char *text, i32 len){
             dest[len] = 0;
             GlobalUnlock(memory_handle);
             SetClipboardData(CF_TEXT, memory_handle);
-            win32vars.next_clipboard_is_self = true;
         }
         CloseClipboard();
+        
+        // NOTE(kv): Acknowledge the new sequence number,
+        // So "system_get_clipboard" won't import it back into our clipboard history.
+        // TODO(kv): Do this for other platforms
+        win32vars.clipboard_sequence = GetClipboardSequenceNumber();
     }
 }
 
@@ -437,17 +440,14 @@ system_get_clipboard_sig(){
     DWORD new_number = GetClipboardSequenceNumber();
     if (new_number != win32vars.clipboard_sequence){
         win32vars.clipboard_sequence = new_number;
-        if (win32vars.next_clipboard_is_self){
-            win32vars.next_clipboard_is_self = false;
-        }
-        else{
-            for (i32 R = 0; R < 8; ++R){
-                result = win32_read_clipboard_contents(win32vars.tctx, arena);
-                if (result.str == 0){
-                    break;
-                }
+        
+        for (i32 R = 0; R < 8; ++R){
+            result = win32_read_clipboard_contents(win32vars.tctx, arena);
+            if (result.str == 0){
+                break;
             }
         }
+        
     }
     return(result);
 }
@@ -1665,19 +1665,19 @@ win32_gl_create_window(HWND *wnd_out, HGLRC *context_out, DWORD style, RECT rect
 internal u64
 win32_get_frame_rate() {
     u64 frame_rate = 60;
-
+    
     DEVMODE device_mode = { 0 };
     // memset(&device_mode, 0, sizeof(DEVMODE));
     device_mode.dmSize = sizeof(DEVMODE);
     device_mode.dmDriverExtra = 0;
-
+    
     // If the Display settings can be retrieved use the device's refresh rate
     if(EnumDisplaySettings(NULL, ENUM_CURRENT_SETTINGS, &device_mode) != 0){
         if (device_mode.dmDisplayFrequency >= 10) {
             frame_rate = device_mode.dmDisplayFrequency;
         }
     }
-
+    
     return frame_rate;
 }
 
@@ -1704,7 +1704,7 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
     
     // NOTE(allen): This thing
     InitializeCriticalSection(&memory_tracker_mutex);
-
+    
     // NOTE(allen): context setup
     Thread_Context _tctx = {};
     thread_ctx_init(&_tctx, ThreadKind_Main, get_base_allocator_system(), get_base_allocator_system());
@@ -1740,9 +1740,9 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
     
     InitializeCriticalSection(&win32vars.thread_launch_mutex);
     InitializeConditionVariable(&win32vars.thread_launch_cv);
-
-     //- @Added by jack
-     log_os("Getting monitor update rate...\n");
+    
+    //- @Added by jack
+    log_os("Getting monitor update rate...\n");
     u64 frame_rate = win32_get_frame_rate();
     u64 frame_useconds = (1000000 / frame_rate);
     //-
@@ -1957,7 +1957,6 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
     }
     win32vars.clip_wakeup_timer = system_wake_up_timer_create();
     win32vars.clipboard_sequence = 0;
-    win32vars.next_clipboard_is_self = 0;
 #if 0
     if (win32vars.clipboard_sequence == 0){
         Scratch_Block scratch(win32vars.tctx);

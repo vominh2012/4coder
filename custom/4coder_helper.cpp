@@ -4,6 +4,13 @@
 
 // TOP
 
+struct TokenNode {
+    TokenNode *next;
+    TokenNode *prev;
+    
+    Token token;
+};
+
 struct TSData {
     void *language_data;
     
@@ -11,6 +18,13 @@ struct TSData {
     TSTree *tree;
     TSQueryCursor *query_cursor;
     TSRange range;
+    TokenNode  tokens;
+    TokenNode *range_start_node;
+    TokenNode *range_end_node;
+    
+    TokenNode  free_tokens;
+    
+    bool large_file;
 };
 
 
@@ -1526,6 +1540,11 @@ Query_Bar_Group::~Query_Bar_Group(){
     clear_all_query_bars(this->app, this->view);
 }
 
+function i32
+clipboard_count(i32 clipboard_id);
+function b32
+clipboard_update_history_from_system(Application_Links *app, i32 clipboard_id);
+
 function b32
 query_user_general(Application_Links *app, Query_Bar *bar, b32 force_number, String_Const_u8 init_string){
     if (start_query_bar(app, bar, 0) == 0){
@@ -1582,11 +1601,16 @@ query_user_general(Application_Links *app, Query_Bar *bar, b32 force_number, Str
         }
         else if (match_key_code(&in, KeyCode_V) && has_modifier(&in.event.key.modifiers, KeyCode_Control))
         {
-            Scratch_Block scratch(app);
-            String_Const_u8 insert_string = push_clipboard_index(scratch, 0, 0);
-            String_u8 string = Su8(bar->string.str, bar->string.size, bar->string_capacity);
-            string_append(&string, insert_string);
-            bar->string.size = string.string.size;
+            clipboard_update_history_from_system(app, 0);
+            i32 count = clipboard_count(0);
+            if (count > 0)
+            {
+                Scratch_Block scratch(app);
+                String_Const_u8 insert_string = push_clipboard_index(scratch, 0, 0);
+                String_u8 string = Su8(bar->string.str, bar->string.size, bar->string_capacity);
+                string_append(&string, insert_string);
+                bar->string.size = string.string.size;
+            }
         }
         else{
             // NOTE(allen): is the user trying to execute another command?

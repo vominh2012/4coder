@@ -29,6 +29,7 @@ struct CLI_Handles{
     Plat_Handle in_write;
     u32 scratch_space[4];
     i32 exit;
+    u64 start_time;
 };
 
 typedef i32 System_Path_Code;
