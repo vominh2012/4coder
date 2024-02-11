@@ -442,6 +442,10 @@ App_Step_Sig(app_step){
             Editing_File *file = child_process->out_file;
             CLI_Handles *cli = &child_process->cli;
             
+            if (!cli->start_time) {
+                cli->start_time = system_now_time();
+            }
+            
             // TODO(allen): do(call a 'child process updated hook' let that hook populate the buffer if it so chooses)
             
             b32 edited_file = false;
@@ -456,7 +460,8 @@ App_Step_Sig(app_step){
             
             if (system_cli_end_update(cli)){
                 if (file != 0){
-                    String_Const_u8 str = push_u8_stringf(scratch, "exited with code %d", cli->exit);
+                    double execution_time = (system_now_time() - cli->start_time) / 1000000.0f;
+                    String_Const_u8 str = push_u8_stringf(scratch, "exited with code %d\nexecution time: %f s", cli->exit, execution_time);
                     output_file_append(tctx, models, file, str);
                     edited_file = true;
                 }
