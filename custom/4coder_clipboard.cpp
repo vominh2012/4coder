@@ -141,6 +141,34 @@ CUSTOM_DOC("Cut the text in the range from the cursor to the mark onto the clipb
     }
 }
 
+function Range_i64 get_current_line_range(Application_Links *app, View_ID view, Buffer_ID buffer)
+{
+    i64 pos = view_get_cursor_pos(app, view);
+    i64 line = get_line_number_from_pos(app, buffer, pos);
+    Range_i64 range = get_line_pos_range(app, buffer, line);
+    range.end += 1;
+    i32 size = (i32)buffer_get_size(app, buffer);
+    range.end = clamp_top(range.end, size);
+    if (range_size(range) == 0 ||
+        buffer_get_char(app, buffer, range.end - 1) != '\n'){
+        range.start -= 1;
+        range.first = clamp_bot(0, range.first);
+    }
+    
+    return range;
+}
+
+CUSTOM_COMMAND_SIG(cut_line)
+CUSTOM_DOC("Cut the text in the range from the cursor to the mark onto the clipboard.")
+{
+    View_ID view = get_active_view(app, Access_ReadWriteVisible);
+    Buffer_ID buffer = view_get_buffer(app, view, Access_ReadWriteVisible);
+    Range_i64 range = get_current_line_range(app, view, buffer);
+    if (clipboard_post_buffer_range(app, 0, buffer, range)){
+        buffer_replace_range(app, buffer, range, string_u8_empty);
+    }
+}
+
 CUSTOM_COMMAND_SIG(paste)
 CUSTOM_DOC("At the cursor, insert the text at the top of the clipboard.")
 {
