@@ -316,11 +316,12 @@ default_render_buffer(Application_Links *app, View_ID view_id, Face_ID face_id,
     
     if (use_tree_sitter) 
     {
-        TSData *ts_data = get_tree_sitter_data_from_buffer(app, buffer);
+        Managed_Scope scope = buffer_get_managed_scope(app, buffer);
+        TSData* ts_data = scope_attachment(app, scope, tree_sitter_attachment_tsdata, TSData);
         if (ts_data && ts_data->language_data)
         {
             draw_visible_text(app, buffer, text_layout_id);
-            draw_tree_sitter_cpp_token_colors(app, buffer, text_layout_id, ts_data);
+            draw_tree_sitter_cpp_token_colors(app, buffer, text_layout_id, ts_data, &scope);
         }
         else
         {
@@ -995,6 +996,9 @@ BUFFER_HOOK_SIG(default_begin_buffer){
         ts_data->parser = parser;
         
         ts_data->query_cursor = ts_query_cursor_new();
+        
+        dll_init_sentinel(&ts_data->tokens);
+        dll_init_sentinel(&ts_data->free_tokens);
     }
     
     {

@@ -669,8 +669,55 @@ draw_visible_text(Application_Links *app, Buffer_ID buffer, Text_Layout_ID text_
     paint_text_color(app, text_layout_id, Ii64_size(token_all.pos, token_all.size), argb);
 }
 
+function void token_node_reset(TSData *ts_data)
+{
+    if (ts_data->tokens.next != &ts_data->tokens)
+    {
+        // TODO: find a way to O(1) merge two circular double link list
+        TokenNode *begin = &ts_data->free_tokens;
+        for (TokenNode *node = begin->next; node != begin; )
+        {
+            TokenNode *remove_node = node;
+            node = node->next;
+            dll_insert_back(&ts_data->tokens, remove_node);
+        }
+        ts_data->free_tokens = ts_data->tokens;
+        ts_data->free_tokens.next->prev = &ts_data->free_tokens;
+        ts_data->free_tokens.prev->next = &ts_data->free_tokens;
+        
+        
+        dll_init_sentinel(&ts_data->tokens);
+    }
+}
+
+#define NODE_BLOCK_COUNT 50
+
+function TokenNode*  token_node_push(TSData *ts_data, Base_Allocator *allocator, Token token)
+{
+    TokenNode *token_node = ts_data->free_tokens.next;
+    if (token_node == &ts_data->free_tokens)
+    {
+        u32 block_count = NODE_BLOCK_COUNT;
+        
+        token_node = base_array(allocator, TokenNode, block_count);
+        for (int idx = 1; idx < block_count; ++idx)
+        {
+            dll_insert_back(&ts_data->free_tokens, &token_node[idx]);
+        }
+    }
+    else
+    {
+        dll_remove(token_node);
+    }
+    
+    token_node->token = token;
+    dll_insert_back(&ts_data->tokens, token_node);
+    
+    return token_node;
+}
+
 function void
-draw_tree_sitter_cpp_token_colors(Application_Links *app, Buffer_ID buffer, Text_Layout_ID text_layout_id, TSData *ts_data){
+draw_tree_sitter_cpp_token_colors(Application_Links *app, Buffer_ID buffer, Text_Layout_ID text_layout_id, TSData *ts_data, Managed_Scope *scope){
     ProfileScope(app, "draw_tree_sitter_cpp_token_colors");
     
     TSLanguageData *language_data = (TSLanguageData*)ts_data->language_data;
@@ -694,19 +741,23 @@ draw_tree_sitter_cpp_token_colors(Application_Links *app, Buffer_ID buffer, Text
             
             if (contents.size > MB(1))
             {
-                u32 extra = 256;
+                ts_data->large_file = true;
                 
+                u32 extra = 512;
+                
+
                 // parser a bit futher for correct hightligh code
                 u32 end_extra = Min(parse_range.end_byte + extra, contents.size);
                 parse_range.end_byte = end_extra;
                 
                 u32 start_extra = 0;
-                if (start_extra < extra) start_extra = 0;
+                if (parse_range.start_byte < extra) start_extra = 0;
                 else start_extra = parse_range.start_byte - extra;
                 parse_range.start_byte = start_extra;
             }
             else // parse all if it small file 
             {
+                ts_data->large_file = false;
                 parse_range.start_byte = 0;
                 parse_range.end_byte = contents.size;
             }
@@ -731,8 +782,31 @@ draw_tree_sitter_cpp_token_colors(Application_Links *app, Buffer_ID buffer, Text
         }
     }
     
-    if (tree)
+    if (!reparse) 
     {
+        // reuse result from cache
+        TokenNode *list = &ts_data->tokens;
+        for (TokenNode *node = list->next; node != list; node = node->next)
+        {
+            Token token = node->token;
+            if (token.pos >= visible_range.start && (token.pos + token.size) <=  visible_range.end)
+            {
+                FColor color = get_token_color_cpp(token);
+                ARGB_Color argb = fcolor_resolve(color);
+                paint_text_color(app, text_layout_id, Ii64_size(token.pos, token.size), argb);
+            }
+            
+            // NOTE: large file will cause token not in order, dont know why yet??
+            if (!ts_data->large_file && (token.pos + token.size) > visible_range.end)
+            {
+                break;
+            }
+        }
+    }
+    else if (tree)
+    {
+        token_node_reset(ts_data);
+        
         TSNode root_node = ts_tree_root_node(tree);
         
         TSQueryCursor* query_cursor = ts_data->query_cursor;
@@ -741,7 +815,6 @@ draw_tree_sitter_cpp_token_colors(Application_Links *app, Buffer_ID buffer, Text
         TSQueryMatch match;
         while(ts_query_cursor_next_match(query_cursor, &match))
         {
-            
             for (int i = 0; i < match.capture_count; ++i)
             {
                 TSQueryCapture  capture = match.captures[i];
@@ -750,17 +823,20 @@ draw_tree_sitter_cpp_token_colors(Application_Links *app, Buffer_ID buffer, Text
                 u32 token_kind = language_data->capture_token_table[capture.index].token_kind;
                 Token token = token_from_capture(capture, token_kind, 0);
                 
-                if (token.pos >= visible_range.start)
+                Base_Allocator *allocator = managed_scope_allocator(app, *scope);
+                token_node_push(ts_data, allocator, token);
+                
+                if (token.pos >= visible_range.start && (token.pos + token.size) <= visible_range.end)
                 {
                     FColor color = get_token_color_cpp(token);
                     ARGB_Color argb = fcolor_resolve(color);
                     paint_text_color(app, text_layout_id, Ii64_size(token.pos, token.size), argb);
+                    
                 }
             }
         }
     }
 }
-
 function void
 draw_whitespace_highlight(Application_Links *app, Text_Layout_ID text_layout_id, Token_Array *array, f32 roundness){
     Range_i64 visible_range = text_layout_get_visible_range(app, text_layout_id);
