@@ -441,10 +441,15 @@ cpp_parse_function(Code_Index_File *index, Generic_Parse_State *state, Code_Inde
             generic_parse_inc(state);
             generic_parse_skip_soft_tokens(index, state);
             peek = token_it_read(&state->it);
-            if (peek != 0 &&
-                peek->kind == TokenBaseKind_ScopeOpen ||
-                peek->kind == TokenBaseKind_StatementClose){
-                index_new_note(index, state, Ii64(token), CodeIndexNote_Function, parent);
+            if (peek != 0)
+            {
+                if (peek->kind == TokenBaseKind_ScopeOpen){
+                    index_new_note(index, state, Ii64(token), CodeIndexNote_Function, parent);
+                }
+                if(peek->kind == TokenBaseKind_StatementClose)
+                {
+                    index_new_note(index, state, Ii64(token), CodeIndexNote_FunctionProto, parent);
+                }
             }
         }
     }

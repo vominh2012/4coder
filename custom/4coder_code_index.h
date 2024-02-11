@@ -45,6 +45,7 @@ typedef i64 Code_Index_Note_Kind;
 enum{
     CodeIndexNote_Type,
     CodeIndexNote_Function,
+    CodeIndexNote_FunctionProto,
     CodeIndexNote_Macro,
     CodeIndexNote_4coderCommand,
 };
