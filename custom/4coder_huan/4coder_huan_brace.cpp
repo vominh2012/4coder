@@ -100,7 +100,7 @@ F4_Brace_RenderCloseBraceAnnotation(Application_Links *app, Buffer_ID buffer, Te
             i64 last_char = get_line_end_pos(app, buffer, line)-1;
             
             Rect_f32 close_scope_rect = text_layout_character_on_screen(app, text_layout_id, last_char);
-            Vec2_f32 close_scope_pos = { close_scope_rect.x0 + 12, close_scope_rect.y0 };
+            Vec2_f32 close_scope_pos = { close_scope_rect.x0 + 20, close_scope_rect.y0 };
             
             // NOTE(rjf): Find token set before this scope begins.
             Token *start_token = 0;
@@ -301,8 +301,7 @@ F4_Brace_RenderLines(Application_Links *app, Buffer_ID buffer, View_ID view,
             line_rect.y1 = y_end;
             
             ARGB_Color color = finalize_color(defcolor_comment, 0);
-            draw_rectangle(app, line_rect, 0.5f, 
-                           color);
+            draw_rectangle_outline(app, line_rect, 0.5f, 0.1f, color);
             
         }
     }

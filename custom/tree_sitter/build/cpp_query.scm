@@ -24,6 +24,7 @@
   declarator: (identifier) @function)
 (preproc_function_def
   name: (identifier) @function.macro)
+  
 
 [
   "const"
@@ -38,6 +39,7 @@
   "volatile"
   "goto"
   "register"
+
 ] @keyword
 
 "sizeof" @keyword.operator

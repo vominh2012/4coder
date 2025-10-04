@@ -17,6 +17,7 @@ F4_RenderErrorAnnotations(Application_Links *app, Buffer_ID buffer,
     
     Locked_Jump_State jump_state = {};
     {
+        ProfileScope(app, "[Fleury] Error Annotations (Get Locked Jump State)");
         jump_state = get_locked_jump_state(app, heap);
     }
     
@@ -52,6 +53,20 @@ F4_RenderErrorAnnotations(Application_Links *app, Buffer_ID buffer,
         
         i64 last_line = -1;
         
+#if 0 
+        i64 jump_line_number = 0;
+        i64 jump_line_count = buffer_get_line_count(app, jump_buffer);
+        for (int i = 0; i < jump_line_count; ++i)
+        {
+            String_Const_u8 line = push_buffer_range(app, scratch, jump_buffer, get_line_pos_range(app, jump_buffer, i));
+            i64 error_loc = string_find_first(line, string_u8_litexpr("error"), StringMatch_CaseInsensitive);
+            i64 warning_loc = string_find_first(line, string_u8_litexpr("warning"), StringMatch_CaseInsensitive);
+            if (error_loc != line.size || warning_loc != line.size)  {
+                jump_line_number = i;
+                break;
+            }
+        }
+#endif
         for(i32 i = 0; i < buffer_marker_count; i += 1)
         {
             ProfileScope(app, "[Fleury] Error Annotations (Buffer Loop)");
@@ -61,7 +76,6 @@ F4_RenderErrorAnnotations(Application_Links *app, Buffer_ID buffer,
             
             if(code_line_number != last_line)
             {
-                
                 String_Const_u8 jump_line = push_buffer_line(app, scratch, jump_buffer, jump_line_number);
                 
                 // NOTE(rjf): Remove file part of jump line.
@@ -118,6 +132,7 @@ F4_RenderErrorAnnotations(Application_Links *app, Buffer_ID buffer,
                 }
             }
             
+            jump_line_number++;
             last_line = code_line_number;
         }
     }

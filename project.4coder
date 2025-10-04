@@ -146,5 +146,7 @@ fkey_command = {
  .F4 = "run_one_time",
  .F5 = "build_C___lexer_generator",
  .F6 = "build_token_tester",
+ .F7 = "build_api_parser",
+ .F8 = "generate_custom_api_master_list",
  .F11 = "package",
 };

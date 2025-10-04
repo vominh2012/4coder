@@ -1206,19 +1206,19 @@ CUSTOM_DOC("Queries the user for a needle and string. Replaces all occurences of
 CUSTOM_COMMAND_SIG(replace_in_all_buffers)
 CUSTOM_DOC("Queries the user for a needle and string. Replaces all occurences of needle with string in all editable buffers.")
 {
-    global_history_edit_group_begin(app);
-    
     Scratch_Block scratch(app);
     Query_Bar_Group group(app);
     String_Pair pair = query_user_replace_pair(app, scratch);
-    for (Buffer_ID buffer = get_buffer_next(app, 0, Access_ReadWriteVisible);
-         buffer != 0;
-         buffer = get_buffer_next(app, buffer, Access_ReadWriteVisible)){
-        Range_i64 range = buffer_range(app, buffer);
-        replace_in_range(app, buffer, range, pair.a, pair.b);
+    if (pair.valid){
+        global_history_edit_group_begin(app);
+        for (Buffer_ID buffer = get_buffer_next(app, 0, Access_ReadWriteVisible);
+             buffer != 0;
+             buffer = get_buffer_next(app, buffer, Access_ReadWriteVisible)){
+            Range_i64 range = buffer_range(app, buffer);
+            replace_in_range(app, buffer, range, pair.a, pair.b);
+        }
+        global_history_edit_group_end(app);
     }
-    
-    global_history_edit_group_end(app);
 }
 
 function void
@@ -1376,7 +1376,7 @@ CUSTOM_DOC("Read from the top of the point stack and jump there; if already ther
 
 ////////////////////////////////
 function void
-execute_command_line(Application_Links *app, List_String_Const_u8 list_cmd, Buffer_ID buffer_id){
+execute_command_line(Application_Links *app, List_String_Const_u8 list_cmd){
     Scratch_Block scratch(app);
     
     String_Const_u8 hot_path = push_hot_directory(app, scratch);
@@ -1386,12 +1386,11 @@ execute_command_line(Application_Links *app, List_String_Const_u8 list_cmd, Buff
     //string_list_pushf(scratch, &list, "\"%.*s\"", string_expand(file_name));
     
     String_Const_u8 cmd = string_list_flatten(scratch, list_cmd, StringFill_NullTerminate);
-    exec_system_command(app, 0, buffer_identifier(0), hot_path, cmd, 0);
-    buffer_kill(app, buffer_id, BufferKill_AlwaysKill);
+    Child_Process_ID child_process_id = create_child_process(app, hot_path, cmd);
 }
 
 function void
-open_command_teminal_base(Application_Links *app, String_Const_u8 file_name, Buffer_ID buffer_id){
+open_command_teminal_base(Application_Links *app){
     Scratch_Block scratch(app);
     
     List_String_Const_u8 list = {};
@@ -1403,21 +1402,21 @@ open_command_teminal_base(Application_Links *app, String_Const_u8 file_name, Buf
 # error no command terminal for this platform
 #endif
     
-    execute_command_line(app, list, buffer_id);
+    execute_command_line(app, list);
 }
 
 CUSTOM_COMMAND_SIG(open_command_teminal)
 CUSTOM_DOC("Open command terminal window.")
 {
-    View_ID view = get_active_view(app, Access_Always);
-    Buffer_ID buffer = view_get_buffer(app, view, Access_Always);
-    Scratch_Block scratch(app);
-    String_Const_u8 file_name = push_buffer_file_name(app, scratch, buffer);
-    open_command_teminal_base(app, file_name, buffer);
+    //View_ID view = get_active_view(app, Access_Always);
+    //Buffer_ID buffer = view_get_buffer(app, view, Access_Always);
+    //Scratch_Block scratch(app);
+    //String_Const_u8 file_name = push_buffer_file_name(app, scratch, buffer);
+    open_command_teminal_base(app);
 }
 
 function void
-open_folder_explorer_base(Application_Links* app, String_Const_u8 file_name, Buffer_ID buffer_id) {
+open_folder_explorer_base(Application_Links* app) {
     Scratch_Block scratch(app);
     
     List_String_Const_u8 list = {};
@@ -1428,17 +1427,17 @@ open_folder_explorer_base(Application_Links* app, String_Const_u8 file_name, Buf
 #else
 # error no folder explorer for this platform
 #endif
-    execute_command_line(app, list, buffer_id);
+    execute_command_line(app, list);
 }
 
 CUSTOM_COMMAND_SIG(open_folder_explorer)
 CUSTOM_DOC("Open folder explorer")
 {
-    View_ID view = get_active_view(app, Access_Always);
-    Buffer_ID buffer = view_get_buffer(app, view, Access_Always);
-    Scratch_Block scratch(app);
-    String_Const_u8 file_name = push_buffer_file_name(app, scratch, buffer);
-    open_folder_explorer_base(app, file_name, buffer);
+    //View_ID view = get_active_view(app, Access_Always);
+    //Buffer_ID buffer = view_get_buffer(app, view, Access_Always);
+    //Scratch_Block scratch(app);
+    //String_Const_u8 file_name = push_buffer_file_name(app, scratch, buffer);
+    open_folder_explorer_base(app);
 }
 
 function void
@@ -1984,7 +1983,7 @@ CUSTOM_DOC("Advances forwards through the undo history of the current buffer.")
     History_Record_Index current = buffer_history_get_current_state_index(app, buffer);
     History_Record_Index max_index = buffer_history_get_max_record_index(app, buffer);
     if (current < max_index){
-        Record_Info record = buffer_history_get_record_info(app, buffer, current + 1);
+        Record_Info record = buffer_history_get_record_info(app, buffer, current);
         i64 new_position = record_get_new_cursor_position_redo(app, buffer, current + 1, record);
         
         buffer_history_set_current_state_index(app, buffer, current + 1);

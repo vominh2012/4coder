@@ -105,7 +105,7 @@ setup_default_mapping(Mapping *mapping, i64 global_id, i64 file_id, i64 code_id)
     Bind(kill_buffer,                 KeyCode_K, KeyCode_Control, KeyCode_Shift);
     Bind(duplicate_line,              KeyCode_L, KeyCode_Control);
     Bind(cursor_mark_swap,            KeyCode_M, KeyCode_Control);
-    Bind(reopen,                      KeyCode_O, KeyCode_Control, KeyCode_Shift);
+    //Bind(reopen,                      KeyCode_O, KeyCode_Control, KeyCode_Shift);
     Bind(query_replace,               KeyCode_R, KeyCode_Control);
     Bind(query_replace_identifier,    KeyCode_R, KeyCode_Control, KeyCode_Shift);
     Bind(query_replace_selection,     KeyCode_R, KeyCode_Alt);
@@ -139,7 +139,7 @@ setup_default_mapping(Mapping *mapping, i64 global_id, i64 file_id, i64 code_id)
     Bind(auto_indent_line_at_cursor, KeyCode_Tab, KeyCode_Shift);
     Bind(word_complete_drop_down,    KeyCode_Tab, KeyCode_Shift, KeyCode_Control);
     Bind(write_block,                KeyCode_R, KeyCode_Alt);
-    Bind(write_todo,                 KeyCode_T, KeyCode_Alt);
+    //Bind(write_todo,                 KeyCode_T, KeyCode_Alt);
     Bind(write_note,                 KeyCode_Y, KeyCode_Alt);
     Bind(list_all_locations_of_type_definition,               KeyCode_D, KeyCode_Alt);
     Bind(list_all_locations_of_type_definition_of_identifier, KeyCode_T, KeyCode_Alt, KeyCode_Shift);

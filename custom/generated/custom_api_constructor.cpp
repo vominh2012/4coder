@@ -743,6 +743,10 @@ api_param(arena, call, "Hook_ID", "hook_id");
 api_param(arena, call, "u64", "size");
 }
 {
+API_Call *call = api_call_with_location(arena, result, string_u8_litexpr("get_languages"), string_u8_litexpr("TSLanguageData*"), string_u8_litexpr(""));
+api_param(arena, call, "Application_Links*", "app");
+}
+{
 API_Call *call = api_call_with_location(arena, result, string_u8_litexpr("get_mouse_state"), string_u8_litexpr("Mouse_State"), string_u8_litexpr(""));
 api_param(arena, call, "Application_Links*", "app");
 }
@@ -934,6 +938,15 @@ API_Call *call = api_call_with_location(arena, result, string_u8_litexpr("draw_r
 api_param(arena, call, "Application_Links*", "app");
 api_param(arena, call, "Rect_f32", "rect");
 api_param(arena, call, "f32", "roundness");
+api_param(arena, call, "ARGB_Color", "color");
+}
+{
+API_Call *call = api_call_with_location(arena, result, string_u8_litexpr("draw_line"), string_u8_litexpr("void"), string_u8_litexpr(""));
+api_param(arena, call, "Application_Links*", "app");
+api_param(arena, call, "Vec2_f32", "a");
+api_param(arena, call, "Vec2_f32", "b");
+api_param(arena, call, "f32", "roundness");
+api_param(arena, call, "f32", "thickness");
 api_param(arena, call, "ARGB_Color", "color");
 }
 {
